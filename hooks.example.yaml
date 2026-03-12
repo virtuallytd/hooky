@@ -1,0 +1,83 @@
+hooks:
+  # ── GitHub-style deployment webhook ─────────────────────────────────────────
+  - id: deploy
+    command: /app/scripts/deploy.sh
+    working-dir: /app/scripts
+    timeout: 5m            # Kill the command if it exceeds this (default: 30s)
+    http-methods: [POST]   # Default; listed for clarity
+
+    # Validate the X-Hub-Signature-256 header (GitHub / any HMAC-SHA256 sender).
+    # The value supports env:VAR and file:/path prefixes so secrets never live
+    # in this file.
+    secret:
+      type: hmac-sha256
+      header: X-Hub-Signature-256
+      value: env:DEPLOY_SECRET
+
+    # Pass values from the JSON payload as positional command arguments.
+    args:
+      - source: payload
+        name: ref           # maps to $1 inside the script
+
+    # Inject request data as environment variables.
+    env:
+      - name: GIT_REF
+        source: payload
+        key: ref
+      - name: REPO
+        source: payload
+        key: repository.full_name   # dot-notation for nested fields
+
+    response:
+      message: "Deployment triggered."
+      include-output: false  # set true to stream stdout/stderr back to caller
+
+    # Allow max 10 calls per minute (sliding window).
+    rate-limit:
+      requests: 10
+      window: 1m
+
+    # Never run more than one deployment at a time.
+    max-concurrent: 1
+
+  # ── Simple token-authenticated hook ─────────────────────────────────────────
+  - id: ping
+    command: /bin/echo
+    args:
+      - source: literal        # you can also hard-code values
+        name: pong
+    http-methods: [GET, POST]
+    secret:
+      type: token
+      header: Authorization   # Bearer <token>; "Bearer " prefix is stripped
+      value: env:PING_TOKEN
+    response:
+      message: "pong\n"
+      include-output: false
+
+  # ── Fire-and-forget with advanced trigger rules ───────────────────────────
+  - id: notify
+    command: /app/scripts/notify.sh
+    fire-and-forget: true    # Return 200 immediately; script runs in background
+    secret:
+      type: hmac-sha256
+      header: X-Signature-256
+      value: env:NOTIFY_SECRET
+    # Only fire when the payload indicates a "push" to the "main" branch.
+    trigger-rule:
+      and:
+        - match:
+            type: value
+            parameter:
+              source: payload
+              name: event
+            value: push
+        - match:
+            type: regex
+            parameter:
+              source: payload
+              name: ref
+            value: ^refs/heads/main$
+    response:
+      success-code: 202
+      message: "Notification queued."

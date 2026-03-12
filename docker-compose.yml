@@ -1,0 +1,18 @@
+services:
+  hooky:
+    build: .
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./hooks.yaml:/app/hooks.yaml:ro
+      - ./scripts:/app/scripts:ro
+      # Mount the Docker socket to allow scripts to control host containers.
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    environment:
+      # Secrets are read at runtime via env: prefixes in hooks.yaml.
+      - DEPLOY_SECRET=changeme
+    command:
+      - -hooks=/app/hooks.yaml
+      - -hotreload
+      - -log-format=json
