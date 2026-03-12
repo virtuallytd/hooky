@@ -199,6 +199,37 @@ trigger-rule:
 -version             Print version and exit
 ```
 
+## Deployment
+
+### Standalone
+
+When running standalone, hooky listens on port `9000` by default. Change it with `-addr`:
+
+```bash
+hooky -hooks hooks.yaml -addr :8080
+```
+
+**Behind a reverse proxy (recommended)** — run hooky on localhost and let nginx or Caddy handle TLS and public traffic. Pass `-proxy-header X-Forwarded-For` so IP whitelist rules see the real client IP:
+
+```bash
+hooky -hooks hooks.yaml -proxy-header X-Forwarded-For
+```
+
+Example nginx config:
+
+```nginx
+location / {
+    proxy_pass http://localhost:9000;
+    proxy_set_header X-Forwarded-For $remote_addr;
+}
+```
+
+**With built-in TLS** — if you'd rather not use a reverse proxy, hooky can terminate TLS directly:
+
+```bash
+hooky -hooks hooks.yaml -cert cert.pem -key key.pem
+```
+
 ## Docker
 
 A `docker-compose.yml` is included. Mount your config and scripts, and optionally the Docker socket if your scripts need to control other containers:
