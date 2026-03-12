@@ -20,18 +20,27 @@ A lightweight HTTP webhook server written in Go. Trigger shell scripts from HTTP
 
 ## Installation
 
-**From source:**
+**Binary** — download the latest release for your platform from the [releases page](https://github.com/virtuallytd/hooky/releases):
+
 ```bash
-go install hooky@latest
+tar -xzf hooky_*_linux_amd64.tar.gz
+sudo mv hooky /usr/local/bin/
 ```
 
 **Docker:**
 ```bash
-docker compose up --build
+docker pull ghcr.io/virtuallytd/hooky:latest
+docker run -p 9000:9000 \
+  -v ./hooks.yaml:/app/hooks.yaml:ro \
+  -v ./scripts:/app/scripts:ro \
+  -e DEPLOY_SECRET=mysecret \
+  ghcr.io/virtuallytd/hooky:latest
 ```
 
-**Binary:**
-Download from the [releases page](https://github.com/virtuallytd/hooky/releases).
+**From source:**
+```bash
+go install hooky@latest
+```
 
 ## Quick Start
 
@@ -207,6 +216,22 @@ services:
 ```
 
 > **Warning:** Mounting the Docker socket gives the container full control over the host's Docker daemon. Ensure the server is not publicly accessible without authentication.
+
+## Releases
+
+Releases are automated via GitHub Actions and [GoReleaser](https://goreleaser.com). To cut a release:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+This triggers the release workflow which:
+- Builds binaries for `linux/amd64` and `linux/arm64`
+- Creates a GitHub release with archives and a `checksums.txt`
+- Builds a multi-arch Docker image and pushes it to `ghcr.io/virtuallytd/hooky`
+
+The Docker image is tagged with both the version (`v1.0.0`) and `latest`.
 
 ## Testing
 

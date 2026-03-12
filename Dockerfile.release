@@ -1,0 +1,12 @@
+FROM alpine:3.19
+
+RUN apk add --no-cache bash curl docker-cli ca-certificates
+
+WORKDIR /app
+
+COPY hooky /usr/local/bin/hooky
+
+EXPOSE 9000
+
+ENTRYPOINT ["hooky"]
+CMD ["-hooks", "/app/hooks.yaml"]
