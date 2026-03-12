@@ -3,14 +3,20 @@ package server_test
 import (
 	"context"
 	"crypto/hmac"
+	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -46,11 +52,15 @@ func baseHook(id, cmd string) config.Hook {
 	}
 }
 
-func sign256(body, secret string) string {
-	mac := hmac.New(sha256.New, []byte(secret))
+func sign(body, secret string, fn func() hash.Hash) string {
+	mac := hmac.New(fn, []byte(secret))
 	mac.Write([]byte(body))
 	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
 }
+
+func sign256(body, secret string) string { return sign(body, secret, sha256.New) }
+func sign1(body, secret string) string   { return sign(body, secret, sha1.New) }
+func sign512(body, secret string) string { return sign(body, secret, sha512.New) }
 
 func post(t *testing.T, url, body string, headers map[string]string) *http.Response {
 	t.Helper()
@@ -390,6 +400,92 @@ func TestSetConfig_HotReload(t *testing.T) {
 	body := readBody(t, resp)
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected 200 after reload, got %d — body: %s", resp.StatusCode, body)
+	}
+}
+
+// ── HMAC SHA1 / SHA512 ────────────────────────────────────────────────────────
+
+func TestHook_HMAC_SHA1_Valid(t *testing.T) {
+	ts := newServer(t, []config.Hook{
+		func() config.Hook {
+			h := baseHook("sha1hook", "/bin/echo")
+			h.Secret = &config.Secret{Type: "hmac-sha1", Header: "X-Sig", Value: "s3cr3t"}
+			h.Response.Message = "ok"
+			return h
+		}(),
+	})
+	body := `{"event":"push"}`
+	resp := post(t, ts.URL+"/hooks/sha1hook", body, map[string]string{"X-Sig": sign1(body, "s3cr3t")})
+	readBody(t, resp)
+	if resp.StatusCode != 200 {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+}
+
+func TestHook_HMAC_SHA512_Valid(t *testing.T) {
+	ts := newServer(t, []config.Hook{
+		func() config.Hook {
+			h := baseHook("sha512hook", "/bin/echo")
+			h.Secret = &config.Secret{Type: "hmac-sha512", Header: "X-Sig", Value: "s3cr3t"}
+			h.Response.Message = "ok"
+			return h
+		}(),
+	})
+	body := `{"event":"push"}`
+	resp := post(t, ts.URL+"/hooks/sha512hook", body, map[string]string{"X-Sig": sign512(body, "s3cr3t")})
+	readBody(t, resp)
+	if resp.StatusCode != 200 {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+}
+
+// ── end-to-end: config file → HTTP request → command output ──────────────────
+
+func TestEndToEnd_ConfigFileToRequest(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping shell test on Windows")
+	}
+	dir := t.TempDir()
+
+	// Write a script that prints an env var set from the payload.
+	script := filepath.Join(dir, "script.sh")
+	os.WriteFile(script, []byte("#!/bin/sh\necho $EVENT_TYPE"), 0755)
+
+	// Write the config file — this is what a real user would create.
+	cfgPath := filepath.Join(dir, "hooks.yaml")
+	os.WriteFile(cfgPath, []byte(fmt.Sprintf(`
+hooks:
+  - id: e2e
+    command: %s
+    env:
+      - name: EVENT_TYPE
+        source: payload
+        key: event
+    response:
+      include-output: true
+`, script)), 0644)
+
+	// Load via the real config.Load path to cover the full pipeline.
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	srv := server.New(server.Options{Addr: "127.0.0.1:0", URLPrefix: "hooks"})
+	if err := srv.SetConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	resp := post(t, ts.URL+"/hooks/e2e", `{"event":"integration-test"}`, nil)
+	body := readBody(t, resp)
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("expected 200, got %d — body: %s", resp.StatusCode, body)
+	}
+	if !strings.Contains(body, "integration-test") {
+		t.Errorf("expected event type in output, got: %q", body)
 	}
 }
 

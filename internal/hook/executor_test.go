@@ -2,7 +2,10 @@ package hook_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -169,27 +172,45 @@ func TestExecute_MaxConcurrent(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping shell test on Windows")
 	}
-	e := hook.NewExecutor(newHook("conc", "/bin/sleep", func(h *config.Hook) {
+	dir := t.TempDir()
+	readyFile := filepath.Join(dir, "ready")
+
+	// Script touches a file to signal it has started, then sleeps.
+	script := filepath.Join(dir, "block.sh")
+	os.WriteFile(script, []byte(fmt.Sprintf("#!/bin/sh\ntouch %s\nsleep 10", readyFile)), 0755)
+
+	e := hook.NewExecutor(newHook("conc", script, func(h *config.Hook) {
 		h.MaxConcurrent = 1
-		h.Args = []config.Parameter{{Source: "literal", Name: "1"}}
 	}))
 
-	// Start a slow execution in the background.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		e.Execute(context.Background(), emptyReq()) //nolint:errcheck
+		e.Execute(ctx, emptyReq()) //nolint:errcheck
 	}()
 
-	// Give the goroutine time to acquire the slot.
-	time.Sleep(20 * time.Millisecond)
+	// Wait until the script signals it is running.
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		if _, err := os.Stat(readyFile); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("script did not start within deadline")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 
-	// Second execution should be rejected immediately.
+	// Second execution must be rejected while the first holds the slot.
 	_, err := e.Execute(context.Background(), emptyReq())
 	if err == nil {
 		t.Error("expected concurrent limit error")
 	}
 
+	cancel()
 	<-done
 }
 
@@ -215,7 +236,69 @@ func TestExecute_FireAndForget_ReturnsImmediately(t *testing.T) {
 	}
 }
 
-// echoCmd returns "/bin/echo" with a literal arg — used where we just need a fast command.
-func echoCmd(msg string) string {
+func TestExecute_EnvVarsReachCommand(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping shell test on Windows")
+	}
+	dir := t.TempDir()
+	script := filepath.Join(dir, "env.sh")
+	os.WriteFile(script, []byte("#!/bin/sh\necho $HOOK_VALUE"), 0755)
+
+	e := hook.NewExecutor(newHook("envtest", script, func(h *config.Hook) {
+		h.Env = []config.EnvVar{
+			{Name: "HOOK_VALUE", Source: "payload", Key: "value"},
+		}
+	}))
+
+	req := &hook.RequestData{
+		Payload:  map[string]any{"value": "from-payload"},
+		Headers:  http.Header{},
+		Query:    map[string]string{},
+		RawBody:  []byte(""),
+		RemoteIP: "127.0.0.1",
+	}
+
+	result, err := e.Execute(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Err != nil {
+		t.Fatalf("command failed: %v", result.Err)
+	}
+	if !strings.Contains(string(result.Output), "from-payload") {
+		t.Errorf("env var not passed to command, output: %q", result.Output)
+	}
+}
+
+func TestExecute_WorkingDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping shell test on Windows")
+	}
+	dir := t.TempDir()
+	// Resolve symlinks — macOS TempDir returns a symlinked path.
+	realDir, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	e := hook.NewExecutor(newHook("wdtest", "/bin/pwd", func(h *config.Hook) {
+		h.WorkingDir = dir
+	}))
+
+	result, err := e.Execute(context.Background(), emptyReq())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Err != nil {
+		t.Fatalf("command failed: %v", result.Err)
+	}
+	got := strings.TrimSpace(string(result.Output))
+	if got != realDir {
+		t.Errorf("working dir: got %q, want %q", got, realDir)
+	}
+}
+
+// echoCmd returns "/bin/echo" — used where we just need a fast no-op command.
+func echoCmd(_ string) string {
 	return "/bin/echo"
 }
