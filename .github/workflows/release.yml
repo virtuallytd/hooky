@@ -9,6 +9,9 @@ permissions:
   contents: write  # create GitHub releases and upload assets
   packages: write  # push to ghcr.io
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   release:
     runs-on: ubuntu-latest
