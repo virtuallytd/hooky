@@ -208,11 +208,38 @@ services:
 
 > **Warning:** Mounting the Docker socket gives the container full control over the host's Docker daemon. Ensure the server is not publicly accessible without authentication.
 
-## Running Tests
+## Testing
 
 ```bash
+# Run all tests
 go test ./...
+
+# Run a specific package
+go test ./internal/hook/...
+
+# Run a single test
+go test ./internal/server/... -run TestHook_HMAC_Valid
+
+# Run with verbose output
+go test ./... -v
+
+# Run with the race detector
+go test -race ./...
 ```
+
+### What the tests cover
+
+| Package | Coverage |
+|---------|----------|
+| `internal/config` | YAML and JSON loading, default values, validation (missing ID/command, duplicate IDs), `env:` and `file:` secret resolution |
+| `internal/hook` | Parameter extraction from all sources (payload with dot-notation, header, query, raw-body), HMAC-SHA1/256/512 validation, token auth with Bearer prefix stripping, all trigger rule types (`value`, `regex`, `ip-whitelist`, `payload-hmac-*`), boolean rule composition (`and`/`or`/`not`), rate limiting (allow, block, window reset), command execution (success, failure, exit codes, timeout, working directory, env var passing, concurrency limits, fire-and-forget) |
+| `internal/server` | Full HTTP request lifecycle — routing, method enforcement, secret validation, trigger rules, rate limiting, custom response headers, proxy IP resolution, hot reload via `SetConfig`, graceful shutdown, end-to-end test from config file on disk through to command output |
+
+Tests run in CI on every push and pull request via GitHub Actions.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
