@@ -1,0 +1,24 @@
+[Unit]
+Description=Hooky webhook server
+Documentation=https://github.com/virtuallytd/hooky
+After=network.target
+
+[Service]
+Type=simple
+User=hooky
+Group=hooky
+ExecStart=/usr/local/bin/hooky -hooks /etc/hooky/hooks.yaml -log-format json
+Restart=on-failure
+RestartSec=5s
+
+# Load secrets from an environment file — create this from /etc/hooky/env.example
+EnvironmentFile=/etc/hooky/.env
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/etc/hooky
+
+[Install]
+WantedBy=multi-user.target

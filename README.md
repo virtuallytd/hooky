@@ -250,6 +250,55 @@ services:
 
 > **Warning:** Mounting the Docker socket gives the container full control over the host's Docker daemon. Ensure the server is not publicly accessible without authentication.
 
+## Running as a systemd Service
+
+A systemd unit file is provided in [`init/systemd/hooky.service`](init/systemd/hooky.service).
+
+**1. Create a dedicated user:**
+
+```bash
+sudo useradd --system --no-create-home --shell /usr/sbin/nologin hooky
+```
+
+**2. Install the binary:**
+
+```bash
+sudo mv hooky /usr/local/bin/hooky
+sudo chmod +x /usr/local/bin/hooky
+```
+
+**3. Create the config directory and add your files:**
+
+```bash
+sudo mkdir -p /etc/hooky
+sudo cp hooks.yaml /etc/hooky/hooks.yaml
+sudo cp .env.example /etc/hooky/.env
+# edit /etc/hooky/.env with your real secrets
+sudo chown -R hooky:hooky /etc/hooky
+sudo chmod 750 /etc/hooky
+sudo chmod 640 /etc/hooky/.env
+```
+
+**4. Install and start the service:**
+
+```bash
+sudo cp init/systemd/hooky.service /etc/systemd/system/hooky.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now hooky
+```
+
+**5. Check it is running:**
+
+```bash
+sudo systemctl status hooky
+sudo journalctl -u hooky -f
+```
+
+> **Note:** If your scripts need to run Docker commands, add the `hooky` user to the `docker` group:
+> ```bash
+> sudo usermod -aG docker hooky
+> ```
+
 ## Releases
 
 Releases are automated via GitHub Actions and [GoReleaser](https://goreleaser.com). To cut a release:
