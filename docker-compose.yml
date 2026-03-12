@@ -9,9 +9,8 @@ services:
       # Mount the Docker socket to allow scripts to control host containers.
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
-    environment:
-      # Secrets are read at runtime via env: prefixes in hooks.yaml.
-      - DEPLOY_SECRET=changeme
+    env_file:
+      - .env
     command:
       - -hooks=/app/hooks.yaml
       - -hotreload

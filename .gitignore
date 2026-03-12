@@ -1,3 +1,4 @@
 hooky
 *.exe
 *.test
+.env
