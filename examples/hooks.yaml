@@ -1,0 +1,33 @@
+hooks:
+  - id: deploy
+    command: /opt/hooky/scripts/deploy.sh
+    working-dir: /opt/hooky/scripts
+    timeout: 5m
+    max-concurrent: 1
+
+    secret:
+      type: hmac-sha256
+      header: X-Hub-Signature-256
+      value: env:DEPLOY_SECRET
+
+    # Only deploy when the push is to the main branch.
+    trigger-rule:
+      match:
+        type: regex
+        parameter:
+          source: payload
+          name: ref
+        value: ^refs/heads/main$
+
+    # Pass request data as environment variables to the script.
+    env:
+      - name: GIT_REF
+        source: payload
+        key: ref
+      - name: REPO
+        source: payload
+        key: repository.full_name
+
+    response:
+      message: "Deployment triggered."
+      include-output: false

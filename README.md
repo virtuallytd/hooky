@@ -344,6 +344,10 @@ volumes:
 
 > **Warning:** Mounting the Docker socket gives the container full control over the host's Docker daemon. Ensure the server is not publicly accessible without authentication.
 
+## Examples
+
+A complete end-to-end example — deploy script, hooky config, and GitHub Actions workflow — is available in the [`examples/`](examples/) directory.
+
 ## Releases
 
 Releases are automated via GitHub Actions and [GoReleaser](https://goreleaser.com). To cut a release:
