@@ -17,7 +17,7 @@ A lightweight HTTP webhook server written in Go. Trigger shell scripts from HTTP
 - **Hot reload** — edit your config without restarting (`-hotreload` or `SIGHUP`)
 - **Proxy-aware** — correct client IP resolution behind reverse proxies
 - **Structured logging** — JSON or text output via `log/slog`
-- **Health endpoint** — `/health` and `/healthz`
+- **Health endpoint** — `/health`
 - **No secret in config** — use `env:VAR` or `file:/path` to keep secrets out of config files
 
 ## Installation
@@ -32,11 +32,6 @@ sudo mv hooky /usr/local/bin/
 **Docker:**
 ```bash
 docker pull ghcr.io/virtuallytd/hooky:latest
-docker run -p 9000:9000 \
-  -v ./hooks.yaml:/app/hooks.yaml:ro \
-  -v ./scripts:/app/scripts:ro \
-  -e DEPLOY_SECRET=mysecret \
-  ghcr.io/virtuallytd/hooky:latest
 ```
 
 **From source:**
@@ -203,7 +198,7 @@ trigger-rule:
 
 ### Standalone
 
-When running standalone, hooky listens on port `9000` by default. Change it with `-addr`:
+Hooky listens on port `9000` by default. Change it with `-addr`:
 
 ```bash
 hooky -hooks hooks.yaml -addr :8080
@@ -224,33 +219,13 @@ location / {
 }
 ```
 
-**With built-in TLS** — if you'd rather not use a reverse proxy, hooky can terminate TLS directly:
+**With built-in TLS** — hooky can terminate TLS directly without a reverse proxy:
 
 ```bash
 hooky -hooks hooks.yaml -cert cert.pem -key key.pem
 ```
 
-## Docker
-
-A `docker-compose.yml` is included. Mount your config and scripts, and optionally the Docker socket if your scripts need to control other containers:
-
-```yaml
-services:
-  hooky:
-    build: .
-    ports:
-      - "9000:9000"
-    volumes:
-      - ./hooks.yaml:/app/hooks.yaml:ro
-      - ./scripts:/app/scripts:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - DEPLOY_SECRET=changeme
-```
-
-> **Warning:** Mounting the Docker socket gives the container full control over the host's Docker daemon. Ensure the server is not publicly accessible without authentication.
-
-## Running as a systemd Service
+### systemd Service
 
 A systemd unit file is provided in [`init/systemd/hooky.service`](init/systemd/hooky.service).
 
@@ -270,13 +245,15 @@ sudo chmod +x /usr/local/bin/hooky
 **3. Create the config directory and add your files:**
 
 ```bash
-sudo mkdir -p /etc/hooky
+sudo mkdir -p /etc/hooky /opt/hooky/scripts
 sudo cp hooks.yaml /etc/hooky/hooks.yaml
 sudo cp .env.example /etc/hooky/.env
 # edit /etc/hooky/.env with your real secrets
 sudo chown -R hooky:hooky /etc/hooky
 sudo chmod 750 /etc/hooky
 sudo chmod 640 /etc/hooky/.env
+sudo chown -R root:hooky /opt/hooky/scripts
+sudo chmod 750 /opt/hooky/scripts
 ```
 
 **4. Install and start the service:**
@@ -299,7 +276,7 @@ sudo journalctl -u hooky -f
 > sudo usermod -aG docker hooky
 > ```
 
-### File Locations
+#### File Locations
 
 | Path | Purpose |
 |------|---------|
@@ -309,7 +286,7 @@ sudo journalctl -u hooky -f
 | `/etc/systemd/system/hooky.service` | Systemd unit file |
 | `/opt/hooky/scripts/` | Hook scripts |
 
-### Logs
+#### Logs
 
 Hooky writes structured output to stdout which systemd captures automatically. Logs are managed by `journald` — no separate log files or log rotation needed.
 
@@ -331,6 +308,41 @@ sudo journalctl -u hooky -f | grep "hook=deploy"
 ```
 
 The hook `id` in your `hooks.yaml` is what appears in logs, so use descriptive names that make log output easy to read — e.g. `api-deploy`, `worker-restart` rather than generic names like `hook1`.
+
+### Docker
+
+Pull the image from the GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/virtuallytd/hooky:latest
+```
+
+Run with a config file and scripts directory:
+
+```bash
+docker run -p 9000:9000 \
+  -v ./hooks.yaml:/app/hooks.yaml:ro \
+  -v ./scripts:/app/scripts:ro \
+  --env-file .env \
+  ghcr.io/virtuallytd/hooky:latest
+```
+
+Or use the provided `docker-compose.yml`:
+
+```bash
+cp .env.example .env
+# edit .env with your real secrets
+docker compose up -d
+```
+
+If your scripts need to control other containers on the host, mount the Docker socket:
+
+```yaml
+volumes:
+  - /var/run/docker.sock:/var/run/docker.sock
+```
+
+> **Warning:** Mounting the Docker socket gives the container full control over the host's Docker daemon. Ensure the server is not publicly accessible without authentication.
 
 ## Releases
 
