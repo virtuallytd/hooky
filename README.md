@@ -299,6 +299,39 @@ sudo journalctl -u hooky -f
 > sudo usermod -aG docker hooky
 > ```
 
+### File Locations
+
+| Path | Purpose |
+|------|---------|
+| `/usr/local/bin/hooky` | Binary |
+| `/etc/hooky/hooks.yaml` | Hook configuration |
+| `/etc/hooky/.env` | Secrets and environment variables |
+| `/etc/systemd/system/hooky.service` | Systemd unit file |
+| `/opt/hooky/scripts/` | Hook scripts |
+
+### Logs
+
+Hooky writes structured output to stdout which systemd captures automatically. Logs are managed by `journald` — no separate log files or log rotation needed.
+
+```bash
+# Follow live logs
+sudo journalctl -u hooky -f
+
+# Show logs since last boot
+sudo journalctl -u hooky -b
+
+# Show logs for a specific time range
+sudo journalctl -u hooky --since "2026-01-01 00:00:00" --until "2026-01-01 23:59:59"
+```
+
+Each log line includes the hook `id` so you can filter by a specific hook:
+
+```bash
+sudo journalctl -u hooky -f | grep "hook=deploy"
+```
+
+The hook `id` in your `hooks.yaml` is what appears in logs, so use descriptive names that make log output easy to read — e.g. `api-deploy`, `worker-restart` rather than generic names like `hook1`.
+
 ## Releases
 
 Releases are automated via GitHub Actions and [GoReleaser](https://goreleaser.com). To cut a release:
