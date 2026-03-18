@@ -13,20 +13,28 @@ set -euo pipefail
 # ── Configuration ─────────────────────────────────────────────────────────────
 COMPOSE_DIR="/opt/myapp"
 SERVICE="myapp"
+LOG_FILE="/var/log/hooky/deploy.log"
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+mkdir -p "$(dirname "$LOG_FILE")"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
 
 # ── Deploy ────────────────────────────────────────────────────────────────────
-echo "Starting deployment"
-echo "  Repository : ${REPO:-unknown}"
-echo "  Ref        : ${GIT_REF:-unknown}"
-echo "  Directory  : $COMPOSE_DIR"
-echo "  Service    : $SERVICE"
+log "Starting deployment"
+log "  Repository : ${REPO:-unknown}"
+log "  Ref        : ${GIT_REF:-unknown}"
+log "  Directory  : $COMPOSE_DIR"
+log "  Service    : $SERVICE"
 
 cd "$COMPOSE_DIR"
 
-echo "Pulling latest image..."
-docker compose pull "$SERVICE"
+log "Pulling latest image..."
+docker compose pull "$SERVICE" 2>&1 | tee -a "$LOG_FILE"
 
-echo "Restarting service..."
-docker compose up -d --no-deps "$SERVICE"
+log "Restarting service..."
+docker compose up -d --no-deps "$SERVICE" 2>&1 | tee -a "$LOG_FILE"
 
-echo "Deployment complete"
+log "Deployment complete"
