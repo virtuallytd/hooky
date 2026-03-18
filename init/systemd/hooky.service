@@ -18,7 +18,7 @@ EnvironmentFile=/etc/hooky/.env
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/etc/hooky
+ReadWritePaths=/etc/hooky /var/log/hooky /opt/hooky
 
 [Install]
 WantedBy=multi-user.target
