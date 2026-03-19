@@ -36,25 +36,35 @@ Edit the `COMPOSE_DIR` and `SERVICE` variables at the top of the script to match
 
 ### 2. Server — configure hooky
 
-Copy the example hooks config and set your secret:
+Copy the example hooks config:
 
 ```bash
 sudo cp examples/hooks.yaml /etc/hooky/hooks.yaml
 ```
 
-Add your secret to `/etc/hooky/.env`:
+### 3. Server — configure credentials
+
+If your application image is hosted in a private registry (e.g. a private GitHub Container Registry repository), add registry credentials to `/etc/hooky/.env` so the deploy script can authenticate before pulling:
 
 ```bash
+# /etc/hooky/.env
 DEPLOY_SECRET=your-secret-here
+
+# Registry auth — omit these if your image is public
+REGISTRY=ghcr.io
+REGISTRY_USER=myorg
+REGISTRY_TOKEN=ghp_xxxxxxxxxxxx   # GitHub PAT with read:packages scope
 ```
 
-Restart the service:
+The deploy script checks for `REGISTRY_TOKEN` at runtime and skips the login step if it is not set, so this is safe to leave out for public images.
+
+Restart the service after editing `.env`:
 
 ```bash
 sudo systemctl restart hooky
 ```
 
-### 3. GitHub — add repository secrets
+### 4. GitHub — add repository secrets and variables
 
 In your application repository go to **Settings → Secrets and variables → Actions** and add:
 
@@ -63,7 +73,7 @@ In your application repository go to **Settings → Secrets and variables → Ac
 | `DEPLOY_SECRET` | The same secret set in `/etc/hooky/.env` |
 | `HOOKY_URL` | The public URL of your hooky server, e.g. `https://hooks.example.com` |
 
-### 4. GitHub — add the workflow
+### 5. GitHub — add the workflow
 
 Copy the example workflow into your application repository:
 

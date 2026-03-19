@@ -311,7 +311,7 @@ The hook `id` in your `hooks.yaml` is what appears in logs, so use descriptive n
 
 ### Docker
 
-Pull the image from the GitHub Container Registry:
+Pull the hooky image from the GitHub Container Registry (no authentication required — the image is public):
 
 ```bash
 docker pull ghcr.io/virtuallytd/hooky:latest
@@ -334,6 +334,24 @@ cp .env.example .env
 # edit .env with your real secrets
 docker compose up -d
 ```
+
+**Authenticating to a private registry** — if your deploy scripts pull images from a private registry (e.g. a private GitHub Container Registry repository), pass the credentials to hooky via `/etc/hooky/.env` so the deploy script can log in before pulling:
+
+```bash
+# /etc/hooky/.env — registry credentials for the deploy script
+REGISTRY=ghcr.io
+REGISTRY_USER=myorg
+REGISTRY_TOKEN=ghp_xxxxxxxxxxxx   # GitHub PAT with read:packages scope
+```
+
+The deploy script can then authenticate using these variables:
+
+```bash
+echo "$REGISTRY_TOKEN" | docker login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
+docker compose pull myservice
+```
+
+See the [`examples/`](examples/) directory for a complete worked example including this auth pattern.
 
 If your scripts need to control other containers on the host, mount the Docker socket:
 

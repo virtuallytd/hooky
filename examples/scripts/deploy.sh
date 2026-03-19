@@ -7,6 +7,11 @@
 # Expected environment variables (set via hooks.yaml env: block):
 #   GIT_REF  — the git ref that triggered the deployment (e.g. refs/heads/main)
 #   REPO     — the repository name (e.g. myorg/myapp)
+#
+# Optional environment variables (set in /etc/hooky/.env for private registries):
+#   REGISTRY       — registry hostname, e.g. ghcr.io (default: ghcr.io)
+#   REGISTRY_USER  — registry username or organisation
+#   REGISTRY_TOKEN — personal access token with read:packages scope
 
 set -euo pipefail
 
@@ -28,6 +33,17 @@ log "  Repository : ${REPO:-unknown}"
 log "  Ref        : ${GIT_REF:-unknown}"
 log "  Directory  : $COMPOSE_DIR"
 log "  Service    : $SERVICE"
+
+# Authenticate to the registry if credentials are provided.
+# Set REGISTRY, REGISTRY_USER, and REGISTRY_TOKEN in /etc/hooky/.env to enable
+# this for private registries (e.g. a private GitHub Container Registry repo).
+if [[ -n "${REGISTRY_TOKEN:-}" ]]; then
+    REGISTRY="${REGISTRY:-ghcr.io}"
+    log "Logging in to registry: $REGISTRY"
+    echo "$REGISTRY_TOKEN" | docker login "$REGISTRY" \
+        -u "${REGISTRY_USER:?REGISTRY_USER must be set}" \
+        --password-stdin 2>&1 | tee -a "$LOG_FILE"
+fi
 
 cd "$COMPOSE_DIR"
 
