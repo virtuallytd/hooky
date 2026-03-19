@@ -19,8 +19,10 @@ EnvironmentFile=/etc/hooky/.env
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-# /home/hooky is writable so docker login can store credentials in ~/.docker/config.json.
+# read-only access to all home directories; /home/hooky is overridden to writable
+# below so docker login can store credentials in ~/.docker/config.json.
 # Create this directory if it doesn't exist: sudo mkdir -p /home/hooky && sudo chown hooky:hooky /home/hooky
+ProtectHome=read-only
 ReadWritePaths=/etc/hooky /var/log/hooky /opt/hooky /home/hooky
 
 [Install]
