@@ -11,14 +11,17 @@ ExecStart=/usr/local/bin/hooky -hooks /etc/hooky/hooks.yaml -log-format json
 Restart=on-failure
 RestartSec=5s
 
-# Load secrets from an environment file — create this from /etc/hooky/env.example
+# Load secrets and environment variables from a file.
+# Create this from .env.example and edit with your real values.
 EnvironmentFile=/etc/hooky/.env
 
 # Hardening
 NoNewPrivileges=true
+PrivateTmp=true
 ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/etc/hooky /var/log/hooky /opt/hooky
+# /home/hooky is writable so docker login can store credentials in ~/.docker/config.json.
+# Create this directory if it doesn't exist: sudo mkdir -p /home/hooky && sudo chown hooky:hooky /home/hooky
+ReadWritePaths=/etc/hooky /var/log/hooky /opt/hooky /home/hooky
 
 [Install]
 WantedBy=multi-user.target
