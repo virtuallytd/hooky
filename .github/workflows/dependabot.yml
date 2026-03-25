@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Go Module for Hugo
+  - package-ecosystem: "gomod"
+    directory: "/" # Assuming go.mod is in the root directory
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "docker"
+    directory: "/" # The root directory if your Dockerfile is at the top level of your repo.
+    schedule:
+      interval: "weekly" # Check for updates weekly.
+    open-pull-requests-limit: 5
+
+  # GitHub Actions Updates in blog-container.yml
+  - package-ecosystem: "github-actions"
+    directory: ".github/workflows"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
