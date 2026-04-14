@@ -3,6 +3,8 @@
 [![Test](https://github.com/virtuallytd/hooky/actions/workflows/test.yml/badge.svg)](https://github.com/virtuallytd/hooky/actions/workflows/test.yml)
 [![Release](https://github.com/virtuallytd/hooky/actions/workflows/release.yml/badge.svg)](https://github.com/virtuallytd/hooky/actions/workflows/release.yml)
 [![Latest Release](https://img.shields.io/github/v/release/virtuallytd/hooky)](https://github.com/virtuallytd/hooky/releases/latest)
+[![Go Report Card](https://goreportcard.com/badge/github.com/virtuallytd/hooky)](https://goreportcard.com/report/github.com/virtuallytd/hooky)
+[![License](https://img.shields.io/github/license/virtuallytd/hooky)](LICENSE)
 
 A lightweight HTTP webhook server written in Go. Trigger shell scripts from HTTP requests with built-in secret validation, rate limiting, and configurable execution controls. Runs standalone or in Docker.
 
