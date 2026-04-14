@@ -63,9 +63,9 @@ type Result struct {
 
 // Executor manages rate limiting, concurrency control, and execution for one hook.
 type Executor struct {
-	hook        config.Hook
-	rl          *rateLimiter
-	concurrent  atomic.Int32
+	hook       config.Hook
+	rl         *rateLimiter
+	concurrent atomic.Int32
 }
 
 // NewExecutor creates an Executor for the given hook.
