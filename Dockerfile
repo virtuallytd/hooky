@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ── Build stage ──────────────────────────────────────────────────────────────
-FROM golang:1.26-alpine AS builder
+FROM golang:1.27-alpine AS builder
 
 WORKDIR /build
 
@@ -13,7 +13,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o hooky .
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
-FROM alpine:3.23
+FROM alpine:3.24
 
 # bash and curl are useful for hook scripts; docker-cli allows controlling
 # the host Docker daemon when /var/run/docker.sock is mounted.
